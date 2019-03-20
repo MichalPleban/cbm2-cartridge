@@ -1,0 +1,441 @@
+
+.org	$6000
+.case -
+
+.include "include/zpdef610.inc"		; Zeropage
+.include "include/p3def610.inc"		; Page 3
+.include "include/iodef610.inc"		; I/O
+.include "include/kernal.inc"
+
+
+; --------------------------------------------------------
+; Cold start
+; --------------------------------------------------------
+InitC:
+		jmp Do_Init
+
+; --------------------------------------------------------
+; Warm start
+; --------------------------------------------------------
+InitW:
+		jmp Do_InitW
+
+; --------------------------------------------------------
+; Autostart header
+; --------------------------------------------------------
+		.byte $43, $C2, $CD, $36
+		.byte $00
+
+; --------------------------------------------------------
+; IEC version marker
+; --------------------------------------------------------
+		.byte $C9, $C5, $C3, $31, $30
+
+; --------------------------------------------------------
+; Jump table
+; --------------------------------------------------------
+		jmp do_restor
+		jmp Do_MyInit
+		jmp InitMon
+		jmp StartSerial
+		jmp StartC2N232
+		.res 9, $FF
+
+; --------------------------------------------------------
+; Initialization
+; --------------------------------------------------------
+Do_MyInit:
+		jsr SerBusInit
+		jmp MyInit
+
+Do_InitW:
+		jsr Do_MyInit
+		jsr SetKeys
+		jmp $8003		
+
+Do_Init:
+		sei
+		cld
+	        jsr do_ioinit
+    		lda #$F0
+	        sta PgmKeyBuf+1
+    		jsr jmp_scrinit
+	        jsr MyRamTas 
+    		jsr do_restor
+	        jsr jmp_scrinit
+	    	lda #$A5
+	        sta WstFlag
+Do_Init2:
+   		bit $8001
+		bpl Init128
+		bmi Init256
+		
+; --------------------------------------------------------
+; Initialize BASIC 128
+; --------------------------------------------------------
+Init128:
+		jsr $bbbc
+		ldx #2
+Init128l1:
+		lda $b4fe,x
+		sta $02,x
+		dex
+		bpl Init128l1
+		sta $61
+		ldx #4
+Init128l2:
+		lda $bbc7,x
+		sta $0259,x
+		dex
+		bne Init128l2
+		stx $78
+		stx $1a
+		stx $16
+		stx $0258
+		stx $1d
+		dex
+		stx $1e
+		stx $1f
+		sec
+		jsr $ff9c
+		stx $31
+		sty $32
+		stx $2d
+		sty $2e
+		jsr $ba93
+		jsr $ba8c
+		ldy #0
+		tya
+		sta ($2d),y
+		inc $2d
+		bne Init128l3
+		inc $2e
+Init128l3:
+		lda #<Init128Banner
+		sta $025b
+		lda #>Init128banner
+		sta $025c
+		jsr $a3cf
+		jsr RamBanner
+		jsr $8a2b 
+		ldx #$cc
+		ldy #$bb
+		jsr $ff6f
+		cli
+		jsr Do_MyInit
+		jsr SetKeys
+		lda #$03
+		sta wstvec
+		lda #$60
+		sta wstvec+1
+		jsr WedgeInstall
+		jmp $85c0
+
+; --------------------------------------------------------
+; Initialize BASIC 256
+; --------------------------------------------------------
+Init256:
+		jsr $bb29
+		ldx #2
+Init256l1:
+		lda $b460,x
+		sta $02,x
+		dex
+		bpl Init256l1
+		sta $61
+		ldx #4
+Init256l2:
+		lda $bb34,x
+		sta $0259,x
+		dex
+		bne Init256l2
+		stx $78
+		stx $1a
+		stx $16
+		stx $0258
+		stx $1d
+		dex
+		stx $1e
+		stx $1f
+		inx
+		stx $31
+		ldx #$80
+		stx $32
+		sec
+		jsr $ff9c
+		stx $39
+		sty $3a
+		stx $35
+		sty $36
+		stx $2d
+		sty $2e
+		jsr $b9f5
+		jsr $b9ee
+		ldy #0
+		tya
+		sta ($2d),y
+		inc $2d
+		bne Init256l3
+		inc $2e
+Init256l3:
+		lda #<Init256Banner
+		sta $025b
+		lda #>Init256banner
+		sta $025c
+		jsr $a33b
+		jsr RamBanner
+		jsr $8a12 
+		ldx #$39
+		ldy #$bb
+		jsr $ff6f
+		cli
+		jsr Do_MyInit
+		jsr SetKeys
+		lda #$03
+		sta wstvec
+		lda #$60
+		sta wstvec+1
+		jsr WedgeInstall
+		jmp $85b8
+		
+; --------------------------------------------------------
+; Modified startup banners
+; --------------------------------------------------------
+Init128Banner:
+		.byte $93
+		.byte "*** COMMODORE 128 BASIC V4.0, IEC ROUTINES V1.0 ***"
+		.byte 13
+		.byte 0
+Init256Banner:
+		.byte $93
+		.byte "*** COMMODORE 256 BASIC V4.0, IEC ROUTINES V1.0 ***"
+		.byte 13
+		.byte 0
+		
+; --------------------------------------------------------
+; Fast RAM initialization & test
+; --------------------------------------------------------
+MyRamTas:
+        lda     #$00
+        tax
+LFA8B:
+;       sta     $0002,x         ; war nicht ZP-codiert
+        .byte   $9D,$02,$00
+        sta     $0200,x         ; Zeropage, Page 2 und 3 löschen
+        sta     $02F8,x         ;
+        inx
+        bne     LFA8B
+        lda     #$01
+        sta     IndReg
+        sta     UsrMemBot+2
+        sta     SysMemBot+2
+        lda     #$02
+        sta     UsrMemBot
+        sta     SysMemBot
+        dec     IndReg
+LFAAB:
+        inc     IndReg          ; Teste auf Ram in allen Bänken
+        lda     IndReg
+        cmp     #$0F
+        beq     LFAD7
+LFAB3:
+        ldy     #$F0            ; komplette 64KB
+LFAB5:
+        lda     (SaveAdrLow),y
+        tax
+        lda     #$55
+        sta     (SaveAdrLow),y
+        lda     (SaveAdrLow),y
+        cmp     #$55
+        bne     LFAD7           ; muß zusammenhängend sein, sonst Abbruch
+        asl     a
+        sta     (SaveAdrLow),y
+        lda     (SaveAdrLow),y
+        cmp     #$AA
+        bne     LFAD7
+        txa
+        sta     (SaveAdrLow),y
+        iny
+        bne     LFAB5
+        inc     SaveAdrHi
+        bne     LFAB3
+        beq     LFAAB           ; alle Bänke testen
+LFAD7:
+        ldx     IndReg          ; Einsprung nach Speichertest
+        dex                     ; letztes belegtes Segment
+        txa
+        ldx     #$FF
+        ldy     #$FD
+        sta     SysMemTop+2     ; Zeiger auf Ende des freien Speichers setzen
+        sty     SysMemTop+1
+        stx     SysMemTop
+        ldy     #$FA
+        clc
+        jsr     do_memtop
+        dec     rs232BufPtrSeg
+        dec     TapeBufPtrSeg
+        lda     #<do_tape       ; Tape-Pointer setzen
+        sta     TapeVec
+        lda     #>do_tape
+        sta     TapeVec+1
+        rts
+
+; --------------------------------------------------------
+; RAM size messages
+; --------------------------------------------------------
+BASICBanner:
+		sta $025b
+		stx $025c
+		bit $8001
+		bpl BasicBanner1
+		jmp $a33b		
+BasicBanner1:
+		jmp $a3cf
+
+RamBanner:
+		lda #<HelpMessage
+		ldx #>HelpMessage
+		jsr BASICBanner		
+      		lda SysMemTop+2
+        	asl a
+        	asl a
+        	clc
+        	adc #<RamMessage-4
+		ldx #>RamMessage
+		jsr BASICBanner
+		lda #<RamMessage2
+		ldx #>RamMessage2
+		jmp BASICBanner		
+
+RamMessage:
+		.byte " 64", 0
+		.byte "128", 0
+		.byte "192", 0
+		.byte "256", 0
+		.byte "320", 0
+		.byte "384", 0
+		.byte "448", 0
+		.byte "512", 0
+		.byte "576", 0
+		.byte "640", 0
+		.byte "704", 0
+		.byte "768", 0
+		.byte "832", 0
+		.byte "894", 0
+RamMessage2:
+		.byte " KB RAM INSTALLED", 13, 13, 0 
+
+HelpMessage:
+		.byte "F11 - CBMLINK SERIAL, "
+		.byte "F12 - CBMLINK C2N232, "
+		.byte "F20 - MONITOR"
+		.byte 13, 0
+
+
+; --------------------------------------------------------
+; CBMLINK binaries
+; --------------------------------------------------------
+CbmLinkSerial:
+		.incbin "cbmlink/serial.prg", 51
+CbmLinkC2N232:
+		.incbin "cbmlink/c2n232.prg", 51
+
+; --------------------------------------------------------
+; CBMLINK launch
+; --------------------------------------------------------
+StartSerial:
+		ldx #0
+StartSerial1:
+		lda CbmLinkSerial,x
+		sta $0400, x
+		lda CbmLinkSerial+256,x
+		sta $0500,x
+		inx
+		bne StartSerial1
+		jmp $0400
+		
+StartC2N232:
+		ldx #0
+StartC2N2321:
+		lda CbmLinkC2N232,x
+		sta $0400, x
+		lda CbmLinkC2N232+256,x
+		sta $0500,x
+		inx
+		bne StartC2N2321
+		jmp $0400
+
+; --------------------------------------------------------
+; Function key assignment
+; --------------------------------------------------------
+SetKeys:
+		lda #8
+		sta $F0
+		lda #<Key1
+		sta $F1
+		lda #>Key1
+		sta $F2
+		lda #$0F
+		sta $F3
+		ldy #20
+  		lda #$F0
+		jsr jmp_funkey
+		lda #<Key2
+		sta $F1
+		lda #>Key2
+		sta $F2
+		ldy #11
+  		lda #$F0
+		jsr jmp_funkey
+		lda #<Key3
+		sta $F1
+		lda #>Key3
+		sta $F2
+		ldy #12
+  		lda #$F0
+		jsr jmp_funkey
+		lda #<Key4
+		sta $F1
+		lda #>Key4
+		sta $F2
+		ldy #13
+  		lda #$F0
+		jsr jmp_funkey
+		lda #<Key5
+		sta $F1
+		lda #>Key5
+		sta $F2
+		ldy #14
+  		lda #$F0
+		jsr jmp_funkey
+		rts
+
+Key1:
+		.byte "SYS24598"
+Key2:
+		.byte "SYS24601"
+Key3:
+		.byte "SYS24604"
+Key4:
+		.byte "SYS 1024"
+Key5:
+		.byte "SYS 1027"
+
+; --------------------------------------------------------
+; Test whether the machine has 128 or 256 BASIC
+; Output: N=0 - BASIC 128, N=1 - BASIC 256
+; --------------------------------------------------------
+;CheckBasic:
+;		bit $8001		
+;		rts
+
+.include "iec/iec.inc"
+.include "iec/serbus.inc"
+
+.include "moni/diskio.inc"
+.include "moni/moni.inc"
+
+.include "wedge/wedge.inc"
+
+.res	($8000-*), $FF
+
