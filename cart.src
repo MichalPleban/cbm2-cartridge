@@ -57,6 +57,11 @@ Do_Init:
 		sei
 		cld
 	        jsr do_ioinit
+		lda #$00
+		sta $DE02
+		lda #$1F
+		sta $DE05
+		sta $DE07
     		lda #$F0
 	        sta PgmKeyBuf+1
     		jsr jmp_scrinit
@@ -238,8 +243,12 @@ LFAAB:
         lda     IndReg
         cmp     #$0F
         beq     LFAD7
+        cmp     #$05
+        bcc     LFAB3
+	lda 	#$F0
+	sta 	SaveAdrHi
 LFAB3:
-        ldy     #$F0            ; komplette 64KB
+        ldy     #$E0            ; komplette 64KB
 LFAB5:
         lda     (SaveAdrLow),y
         tax
@@ -300,7 +309,7 @@ RamBanner:
         	asl a
         	asl a
         	clc
-        	adc #<RamMessage-4
+        	adc #<RamMessage
 		ldx #>RamMessage
 		jsr BASICBanner
 		lda #<RamMessage2
@@ -308,7 +317,8 @@ RamBanner:
 		jmp BASICBanner		
 
 RamMessage:
-		.byte " 64", 0
+		.byte "0", 0, 0, 0
+		.byte "64", 0, 0
 		.byte "128", 0
 		.byte "192", 0
 		.byte "256", 0
