@@ -439,11 +439,11 @@ Key5:
 ;		bit $8001		
 ;		rts
 
-.include "iec/iec.inc"
-.include "iec/serbus.inc"
-
 .include "moni/diskio.inc"
 .include "moni/moni.inc"
+
+.include "iec/iec.inc"
+.include "iec/serbus.inc"
 
 .include "wedge/wedge.inc"
 
