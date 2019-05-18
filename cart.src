@@ -56,20 +56,17 @@ Do_InitW:
 Do_Init:
 		sei
 		cld
-	        jsr do_ioinit
-		lda #$00
-		sta $DE02
-		lda #$1F
-		sta $DE05
+        jsr do_ioinit
+        ; Clear the TPI interrupt flag which is not cleared afer reset
 		sta $DE07
-    		lda #$F0
-	        sta PgmKeyBuf+1
-    		jsr jmp_scrinit
-	        jsr MyRamTas 
-    		jsr do_restor
-	        jsr jmp_scrinit
-	    	lda #$A5
-	        sta WstFlag
+   		lda #$F0
+        sta PgmKeyBuf+1
+   		jsr jmp_scrinit
+        jsr MyRamTas 
+   		jsr do_restor
+        jsr jmp_scrinit
+    	lda #$A5
+        sta WstFlag
 Do_Init2:
    		bit $8001
 		bpl Init128
@@ -243,12 +240,8 @@ LFAAB:
         lda     IndReg
         cmp     #$0F
         beq     LFAD7
-        cmp     #$05
-        bcc     LFAB3
-	lda 	#$F0
-	sta 	SaveAdrHi
 LFAB3:
-        ldy     #$E0            ; komplette 64KB
+        ldy     #$FF            
 LFAB5:
         lda     (SaveAdrLow),y
         tax
