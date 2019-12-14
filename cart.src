@@ -29,7 +29,7 @@ InitW:
 ; --------------------------------------------------------
 ; IEC version marker
 ; --------------------------------------------------------
-		.byte $C9, $C5, $C3, $31, $30
+		.byte $C9, $C5, $C3, $32, $30
 
 ; --------------------------------------------------------
 ; Jump table
@@ -39,7 +39,25 @@ InitW:
 		jmp InitMon
 		jmp StartSerial
 		jmp StartC2N232
-		.res 9, $FF
+		jmp Bootstrap
+		.res 6, $FF
+
+RamMessage:
+		.byte "  0", 0
+		.byte " 64", 0
+		.byte "128", 0
+		.byte "192", 0
+		.byte "256", 0
+		.byte "320", 0
+		.byte "384", 0
+		.byte "448", 0
+		.byte "512", 0
+		.byte "576", 0
+		.byte "640", 0
+		.byte "704", 0
+		.byte "768", 0
+		.byte "832", 0
+		.byte "894", 0
 
 ; --------------------------------------------------------
 ; Initialization
@@ -70,7 +88,7 @@ Do_Init:
 Do_Init2:
    		bit $8001
 		bpl Init128
-		bmi Init256
+		jmp Init256
 		
 ; --------------------------------------------------------
 ; Initialize BASIC 128
@@ -113,11 +131,14 @@ Init128l2:
 		bne Init128l3
 		inc $2e
 Init128l3:
+        lda #128
+        sta BellMode
+		lda #<Line1Banner
+		ldx #>Line1Banner
+		jsr BASICBanner		
 		lda #<Init128Banner
-		sta $025b
-		lda #>Init128banner
-		sta $025c
-		jsr $a3cf
+		ldx #>Init128banner
+		jsr BASICBanner		
 		jsr RamBanner
 		jsr $8a2b 
 		ldx #$cc
@@ -131,6 +152,8 @@ Init128l3:
 		lda #$60
 		sta wstvec+1
 		jsr WedgeInstall
+        lda #0
+        sta BellMode
 		jmp $85c0
 
 ; --------------------------------------------------------
@@ -180,11 +203,14 @@ Init256l2:
 		bne Init256l3
 		inc $2e
 Init256l3:
+        lda #128
+        sta BellMode
+		lda #<Line1Banner
+		ldx #>Line1Banner
+		jsr BASICBanner		
 		lda #<Init256Banner
-		sta $025b
-		lda #>Init256banner
-		sta $025c
-		jsr $a33b
+		ldx #>Init256banner
+		jsr BASICBanner		
 		jsr RamBanner
 		jsr $8a12 
 		ldx #$39
@@ -198,20 +224,28 @@ Init256l3:
 		lda #$60
 		sta wstvec+1
 		jsr WedgeInstall
+        lda #0
+        sta BellMode
 		jmp $85b8
 		
 ; --------------------------------------------------------
-; Modified startup banners
+; Startup banners
 ; --------------------------------------------------------
+Line1Banner:
+        .byte $93
+        .byte $B0
+        .res 78, $C0
+        .byte $AE
+        .byte 0
 Init128Banner:
-		.byte $93
-		.byte "*** COMMODORE 128 BASIC V4.0, IEC ROUTINES V1.0 ***"
-		.byte 13
+		.byte $DD
+		.byte "   *** COMMODORE 128 BASIC V4.0, IEC ROUTINES V1.0, 8088 BOOTSTRAP V1.0 ***   "
+		.byte $DD
 		.byte 0
 Init256Banner:
-		.byte $93
-		.byte "*** COMMODORE 256 BASIC V4.0, IEC ROUTINES V1.0 ***"
-		.byte 13
+		.byte $DD
+		.byte "   *** COMMODORE 256 BASIC V4.0, IEC ROUTINES V1.0, 8088 BOOTSTRAP V1.0 ***   "
+		.byte $DD
 		.byte 0
 		
 ; --------------------------------------------------------
@@ -220,13 +254,12 @@ Init256Banner:
 MyRamTas:
         lda     #$00
         tax
-LFA8B:
-;       sta     $0002,x         ; war nicht ZP-codiert
-        .byte   $9D,$02,$00
-        sta     $0200,x         ; Zeropage, Page 2 und 3 löschen
+MyRamTas1:
+        .byte   $9D,$02,$00     ; STA $0002,X - no zeropage mode to avoid rewriting $00/$01
+        sta     $0200,x         ; Clear page 0, 2 and 3
         sta     $02F8,x         ;
         inx
-        bne     LFA8B
+        bne     MyRamTas1
         lda     #$01
         sta     IndReg
         sta     UsrMemBot+2
@@ -239,30 +272,36 @@ LFAAB:
         inc     IndReg          ; Teste auf Ram in allen Bänken
         lda     IndReg
         cmp     #$0F
-        beq     LFAD7
-LFAB3:
-        ldy     #$FF            
-LFAB5:
+        beq     LFAD8
+        ldy     #$FE
+        lda     (SaveAdrLow),y
+        pha
+        iny
         lda     (SaveAdrLow),y
         tax
+        dey
         lda     #$55
         sta     (SaveAdrLow),y
-        lda     (SaveAdrLow),y
-        cmp     #$55
-        bne     LFAD7           ; muß zusammenhängend sein, sonst Abbruch
+        iny
         asl     a
         sta     (SaveAdrLow),y
+        dey
+        lda     (SaveAdrLow),y
+        cmp     #$55
+        bne     LFAD7           
+        iny
         lda     (SaveAdrLow),y
         cmp     #$AA
         bne     LFAD7
         txa
         sta     (SaveAdrLow),y
-        iny
-        bne     LFAB5
-        inc     SaveAdrHi
-        bne     LFAB3
-        beq     LFAAB           ; alle Bänke testen
+        pla
+        dey
+        sta     (SaveAdrLow),y
+        jmp     LFAAB           ; alle Bänke testen
 LFAD7:
+        pla
+LFAD8:
         ldx     IndReg          ; Einsprung nach Speichertest
         dex                     ; letztes belegtes Segment
         txa
@@ -295,44 +334,42 @@ BasicBanner1:
 		jmp $a3cf
 
 RamBanner:
+        jsr Check8088
+        bne RamBanner1
+		lda #<Banner8088
+		ldx #>Banner8088
+		jsr BASICBanner		
+RamBanner1:
 		lda #<HelpMessage
 		ldx #>HelpMessage
 		jsr BASICBanner		
-      		lda SysMemTop+2
-        	asl a
-        	asl a
-        	clc
-        	adc #<RamMessage
+  		lda SysMemTop+2
+    	asl a
+    	asl a
+    	clc
+    	adc #<RamMessage
 		ldx #>RamMessage
 		jsr BASICBanner
 		lda #<RamMessage2
 		ldx #>RamMessage2
 		jmp BASICBanner		
 
-RamMessage:
-		.byte "0", 0, 0, 0
-		.byte "64", 0, 0
-		.byte "128", 0
-		.byte "192", 0
-		.byte "256", 0
-		.byte "320", 0
-		.byte "384", 0
-		.byte "448", 0
-		.byte "512", 0
-		.byte "576", 0
-		.byte "640", 0
-		.byte "704", 0
-		.byte "768", 0
-		.byte "832", 0
-		.byte "894", 0
 RamMessage2:
-		.byte " KB RAM INSTALLED", 13, 13, 0 
+		.byte " KB MEMORY INSTALLED                               HTTP://WWW.CBM-II.COM/ ", $DD
+        .byte $AD
+        .res 78, $C0
+        .byte $BD
+        .byte 13
+        .byte 0
 
 HelpMessage:
+		.byte $DD, "  "
 		.byte "F11 - CBMLINK SERIAL, "
 		.byte "F12 - CBMLINK C2N232, "
+		.byte "F19 - 8088 BOOT, "
 		.byte "F20 - MONITOR"
-		.byte 13, 0
+		.byte "  ", $DD, $DD, " "
+		.byte 0
 
 
 ; --------------------------------------------------------
@@ -369,60 +406,63 @@ StartC2N2321:
 		jmp $0400
 
 ; --------------------------------------------------------
+; Check co-processor board presence
+; --------------------------------------------------------
+Check8088:
+        lda #$00
+        sta $DB02
+        lda #$ff
+        sta $DB00
+        lda $DB00
+        cmp #$FF
+        rts
+
+Banner8088:        
+		.byte $DD, "                       8088 CO-PROCESSOR BOARD INSTALLED                      ", $DD, 0
+
+; --------------------------------------------------------
 ; Function key assignment
 ; --------------------------------------------------------
 SetKeys:
-		lda #8
+		lda #9
 		sta $F0
-		lda #<Key1
-		sta $F1
-		lda #>Key1
-		sta $F2
 		lda #$0F
 		sta $F3
+		jsr Check8088
+        bne SetKeys1
+		lda #<Key6
+		ldx #>Key6
+		ldy #19
+		jsr SetKey
+SetKeys1:
+		lda #<Key1
+		ldx #>Key1
 		ldy #20
-  		lda #$F0
-		jsr jmp_funkey
+		jsr SetKey
 		lda #<Key2
-		sta $F1
-		lda #>Key2
-		sta $F2
+		ldx #>Key2
 		ldy #11
-  		lda #$F0
-		jsr jmp_funkey
+		jsr SetKey
 		lda #<Key3
-		sta $F1
-		lda #>Key3
-		sta $F2
+		ldx #>Key3
 		ldy #12
-  		lda #$F0
-		jsr jmp_funkey
-		lda #<Key4
-		sta $F1
-		lda #>Key4
-		sta $F2
-		ldy #13
-  		lda #$F0
-		jsr jmp_funkey
-		lda #<Key5
-		sta $F1
-		lda #>Key5
-		sta $F2
-		ldy #14
-  		lda #$F0
-		jsr jmp_funkey
+		jsr SetKey
 		rts
 
+SetKey:
+		sta $F1
+		stx $F2
+  		lda #$F0
+		jmp jmp_funkey
+
 Key1:
-		.byte "SYS24598"
+		.byte "SYS24598", 13
 Key2:
-		.byte "SYS24601"
+		.byte "SYS24601", 13
 Key3:
-		.byte "SYS24604"
-Key4:
-		.byte "SYS 1024"
-Key5:
-		.byte "SYS 1027"
+		.byte "SYS24604", 13
+Key6:
+		.byte "SYS24607", 13
 
 ; --------------------------------------------------------
 ; Test whether the machine has 128 or 256 BASIC
@@ -439,6 +479,7 @@ Key5:
 .include "iec/serbus.inc"
 
 .include "wedge/wedge.inc"
+.include "8088/bootstrap.asm"
 
 .res	($8000-*), $FF
 
