@@ -193,6 +193,8 @@ BootstrapLoad9:
 ;--------------------------------------------------------------------
 
 BootstrapPrint:
+        lda #$80
+        sta BellMode
         ldx #$03
         jsr CHKOUT
         lda ipc_buffer
@@ -204,6 +206,7 @@ BootstrapPrint:
 BootstrapPrint2:
         jsr BSOUT
         lda #$00
+        sta BellMode
         sta QuoteSwitch
         sta InsertFlag
         jsr CLRCH

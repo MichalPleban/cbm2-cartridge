@@ -1,5 +1,5 @@
 
-.org	$6000
+.org	$2000
 .case -
 
 .include "include/zpdef610.inc"		; Zeropage
@@ -23,7 +23,7 @@ InitW:
 ; --------------------------------------------------------
 ; Autostart header
 ; --------------------------------------------------------
-		.byte $43, $C2, $CD, $36
+		.byte $43, $C2, $CD, $32
 		.byte $00
 
 ; --------------------------------------------------------
@@ -456,13 +456,13 @@ SetKey:
 		jmp jmp_funkey
 
 Key1:
-		.byte "SYS24598", 13
+		.byte "SYS8214", 13
 Key2:
-		.byte "SYS24601", 13
+		.byte "SYS8217", 13
 Key3:
-		.byte "SYS24604", 13
+		.byte "SYS8220", 13
 Key6:
-		.byte "SYS24607", 13
+		.byte "SYS8223", 13
 
 ; --------------------------------------------------------
 ; Test whether the machine has 128 or 256 BASIC
@@ -481,5 +481,5 @@ Key6:
 .include "wedge/wedge.inc"
 .include "8088/bootstrap.asm"
 
-.res	($8000-*), $FF
+.res	($4000-*), $FF
 
