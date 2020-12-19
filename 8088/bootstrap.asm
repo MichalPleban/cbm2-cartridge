@@ -36,6 +36,8 @@ RUNCOPRO = $ff72
 ;--------------------------------------------------------------------
 
 Bootstrap:
+        lda #128
+       	sta BellMode
         jsr BootstrapInit
         jmp RUNCOPRO
 
