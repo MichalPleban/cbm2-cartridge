@@ -74,17 +74,17 @@ Do_InitW:
 Do_Init:
 		sei
 		cld
-        jsr do_ioinit
-        ; Clear the TPI interrupt flag which is not cleared afer reset
+	        jsr do_ioinit
+        	; Clear the TPI interrupt flag which is not cleared afer reset
 		sta $DE07
    		lda #$F0
-        sta PgmKeyBuf+1
+	        sta PgmKeyBuf+1
    		jsr jmp_scrinit
-        jsr MyRamTas 
-   		jsr do_restor
-        jsr jmp_scrinit
-    	lda #$A5
-        sta WstFlag
+        	jsr MyRamTas 
+	   	jsr do_restor
+        	jsr jmp_scrinit
+	    	lda #$A5
+        	sta WstFlag
 Do_Init2:
    		bit $8001
 		bpl Init128
@@ -131,8 +131,8 @@ Init128l2:
 		bne Init128l3
 		inc $2e
 Init128l3:
-        lda #128
-        sta BellMode
+	        lda #128
+        	sta BellMode
 		lda #<Line1Banner
 		ldx #>Line1Banner
 		jsr BASICBanner		
@@ -152,8 +152,8 @@ Init128l3:
 		lda #$60
 		sta wstvec+1
 		jsr WedgeInstall
-        lda #0
-        sta BellMode
+	        lda #0
+	        sta BellMode
 		jmp $85c0
 
 ; --------------------------------------------------------
@@ -203,8 +203,8 @@ Init256l2:
 		bne Init256l3
 		inc $2e
 Init256l3:
-        lda #128
-        sta BellMode
+	        lda #128
+        	sta BellMode
 		lda #<Line1Banner
 		ldx #>Line1Banner
 		jsr BASICBanner		
@@ -224,19 +224,19 @@ Init256l3:
 		lda #$60
 		sta wstvec+1
 		jsr WedgeInstall
-        lda #0
-        sta BellMode
+	        lda #0
+	        sta BellMode
 		jmp $85b8
 		
 ; --------------------------------------------------------
 ; Startup banners
 ; --------------------------------------------------------
 Line1Banner:
-        .byte $93
-        .byte $B0
-        .res 78, $C0
-        .byte $AE
-        .byte 0
+	        .byte $93
+        	.byte $B0
+	        .res 78, $C0
+        	.byte $AE
+	        .byte 0
 Init128Banner:
 		.byte $DD
 		.byte "   *** COMMODORE 128 BASIC V4.0, IEC ROUTINES V1.0, 8088 BOOTSTRAP V1.0 ***   "
@@ -334,8 +334,8 @@ BasicBanner1:
 		jmp $a3cf
 
 RamBanner:
-        jsr Check8088
-        bne RamBanner1
+        	jsr Check8088
+	        bne RamBanner1
 		lda #<Banner8088
 		ldx #>Banner8088
 		jsr BASICBanner		
@@ -344,10 +344,10 @@ RamBanner1:
 		ldx #>HelpMessage
 		jsr BASICBanner		
   		lda SysMemTop+2
-    	asl a
-    	asl a
-    	clc
-    	adc #<RamMessage
+	    	asl a
+    		asl a
+	    	clc
+    		adc #<RamMessage
 		ldx #>RamMessage
 		jsr BASICBanner
 		lda #<RamMessage2
@@ -356,11 +356,11 @@ RamBanner1:
 
 RamMessage2:
 		.byte " KB MEMORY INSTALLED                               HTTP://WWW.CBM-II.COM/ ", $DD
-        .byte $AD
-        .res 78, $C0
-        .byte $BD
-        .byte 13
-        .byte 0
+	        .byte $AD
+        	.res 78, $C0
+	        .byte $BD
+        	.byte 13
+	        .byte 0
 
 HelpMessage:
 		.byte $DD, "  "
