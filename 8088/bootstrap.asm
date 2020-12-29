@@ -30,14 +30,11 @@ QuoteSwitch = $d2
 
 RUNCOPRO = $ff72
 
-
 ;--------------------------------------------------------------------
-; Load address for the PRG file
+; Start the 8088 board
 ;--------------------------------------------------------------------
 
 Bootstrap:
-        lda #128
-       	sta BellMode
         jsr BootstrapInit
         jmp RUNCOPRO
 
@@ -201,7 +198,9 @@ BootstrapPrint:
         cmp #13
         beq BootstrapPrint2
         cmp #147
-        beq BootstrapPrint2
+        bne BootstrapPrint3
+        jmp BannerShow
+BootstrapPrint3:
         jsr BootstrapConvert
 BootstrapPrint2:
         jsr BSOUT
