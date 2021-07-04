@@ -1,10 +1,19 @@
 
-.org	$2000
+.ifdef ORG2000
+.org    $2000
+.endif
+.ifdef ORG4000
+.org    $4000
+.endif
+.ifdef ORG6000
+.org    $6000
+.endif
+
 .case -
 
-.include "include/zpdef610.inc"		; Zeropage
-.include "include/p3def610.inc"		; Page 3
-.include "include/iodef610.inc"		; I/O
+.include "include/zpdef610.inc"        ; Zeropage
+.include "include/p3def610.inc"        ; Page 3
+.include "include/iodef610.inc"        ; I/O
 .include "include/kernal.inc"
 
 
@@ -12,243 +21,246 @@
 ; Cold start
 ; --------------------------------------------------------
 InitC:
-		jmp Do_Init
+        jmp Do_Init
 
 ; --------------------------------------------------------
 ; Warm start
 ; --------------------------------------------------------
 InitW:
-		jmp Do_InitW
+        jmp Do_InitW
 
 ; --------------------------------------------------------
 ; Autostart header
 ; --------------------------------------------------------
-		.byte $43, $C2, $CD, $32
-		.byte $00
+        .byte $43, $C2, $CD
+.ifdef ORG2000
+	.byte $32
+.endif
+.ifdef ORG4000
+	.byte $34
+.endif
+.ifdef ORG6000
+	.byte $36
+.endif
+        .byte $00
 
 ; --------------------------------------------------------
 ; IEC version marker
 ; --------------------------------------------------------
-		.byte $C9, $C5, $C3, $32, $30
+        .byte $C9, $C5, $C3, $32, $30
 
 ; --------------------------------------------------------
 ; Jump table
 ; --------------------------------------------------------
-		jmp do_restor
-		jmp Do_MyInit
-		jmp InitMon
-		jmp StartSerial
-		jmp StartC2N232
-		jmp Bootstrap
-		jmp Start4000
-		jmp Start6000
+        jmp do_restor
+        jmp Do_MyInit
+        jmp InitMon
+        jmp StartSerial
+        jmp StartC2N232
+        jmp Bootstrap
+        jmp Start4000
+        jmp Start6000
 
 RamMessage:
-		.byte "  0", 0
-		.byte " 64", 0
-		.byte "128", 0
-		.byte "192", 0
-		.byte "256", 0
-		.byte "320", 0
-		.byte "384", 0
-		.byte "448", 0
-		.byte "512", 0
-		.byte "576", 0
-		.byte "640", 0
-		.byte "704", 0
-		.byte "768", 0
-		.byte "832", 0
-		.byte "894", 0
+        .byte "  0", 0
+        .byte " 64", 0
+        .byte "128", 0
+        .byte "192", 0
+        .byte "256", 0
+        .byte "320", 0
+        .byte "384", 0
+        .byte "448", 0
+        .byte "512", 0
+        .byte "576", 0
+        .byte "640", 0
+        .byte "704", 0
+        .byte "768", 0
+        .byte "832", 0
+        .byte "894", 0
 
 ; --------------------------------------------------------
 ; Initialization
 ; --------------------------------------------------------
 Do_MyInit:
-		jsr SerBusInit
-		jmp MyInit
+        jsr SerBusInit
+        jmp MyInit
 
 Do_InitW:
-		jsr Do_MyInit
-		jsr SetKeys
-		jmp $8003		
+        jsr Do_MyInit
+        jsr SetKeys
+        jmp $8003        
 
 Do_Init:
-		sei
-		cld
+        sei
+        cld
         jsr do_ioinit
-       	; Clear the TPI interrupt flag which is not cleared afer reset
-		sta $DE07
-   		lda #$F0
-	    sta PgmKeyBuf+1
-   		jsr jmp_scrinit
-        jsr MyRamTas 
-	   	jsr do_restor
+        ; Clear the TPI interrupt flag which is not cleared afer reset
+        sta $DE07
+        lda #$F0
+        sta PgmKeyBuf+1
         jsr jmp_scrinit
-	    lda #$A5
+        jsr MyRamTas
+        jsr Delay
+        jsr do_restor
+        jsr jmp_scrinit
+        lda #$A5
         sta WstFlag
 Do_Init2:
-   		bit $8001
-		bpl Init128
-		jmp Init256
-		
+        bit $8001
+        bpl Init128
+        jmp Init256
+        
 ; --------------------------------------------------------
 ; Initialize BASIC 128
 ; --------------------------------------------------------
 Init128:
-		jsr $bbbc
-		ldx #2
+        jsr $bbbc
+        ldx #2
 Init128l1:
-		lda $b4fe,x
-		sta $02,x
-		dex
-		bpl Init128l1
-		sta $61
-		ldx #4
+        lda $b4fe,x
+        sta $02,x
+        dex
+        bpl Init128l1
+        sta $61
+        ldx #4
 Init128l2:
-		lda $bbc7,x
-		sta $0259,x
-		dex
-		bne Init128l2
-		stx $78
-		stx $1a
-		stx $16
-		stx $0258
-		stx $1d
-		dex
-		stx $1e
-		stx $1f
-		sec
-		jsr $ff9c
-		stx $31
-		sty $32
-		stx $2d
-		sty $2e
-		jsr $ba93
-		jsr $ba8c
-		ldy #0
-		tya
-		sta ($2d),y
-		inc $2d
-		bne Init128l3
-		inc $2e
+        lda $bbc7,x
+        sta $0259,x
+        dex
+        bne Init128l2
+        stx $78
+        stx $1a
+        stx $16
+        stx $0258
+        stx $1d
+        dex
+        stx $1e
+        stx $1f
+        sec
+        jsr $ff9c
+        stx $31
+        sty $32
+        stx $2d
+        sty $2e
+        jsr $ba93
+        jsr $ba8c
+        ldy #0
+        tya
+        sta ($2d),y
+        inc $2d
+        bne Init128l3
+        inc $2e
 Init128l3:
-	    lda #128
+        lda #128
         sta BellMode
-		lda #<Line1Banner
-		ldx #>Line1Banner
-		jsr BASICBanner		
-		lda #<Init128Banner
-		ldx #>Init128banner
-		jsr BASICBanner		
-		jsr RamBanner
-		jsr $8a2b 
-		ldx #$cc
-		ldy #$bb
-		jsr $ff6f
-		cli
-		jsr Do_MyInit
-		jsr SetKeys
-		lda #<InitW
-		sta wstvec
-		lda #>InitW
-		sta wstvec+1
-		jsr WedgeInstall
-	    lda #0
-	    sta BellMode
-		jmp $85c0
+        lda #<Line1Banner
+        ldx #>Line1Banner
+        jsr BASICBanner        
+        lda #<Init128Banner
+        ldx #>Init128banner
+        jsr BASICBanner        
+        jsr RamBanner
+        jsr $8a2b 
+        ldx #$cc
+        ldy #$bb
+        jsr $ff6f
+        cli
+        jsr Do_MyInit
+        jsr SetKeys
+        lda #<InitW
+        sta wstvec
+        lda #>InitW
+        sta wstvec+1
+        jsr WedgeInstall
+        lda #0
+        sta BellMode
+        jmp $85c0
 
 ; --------------------------------------------------------
 ; Initialize BASIC 256
 ; --------------------------------------------------------
 Init256:
-		jsr $bb29
-		ldx #2
+        jsr $bb29
+        ldx #2
 Init256l1:
-		lda $b460,x
-		sta $02,x
-		dex
-		bpl Init256l1
-		sta $61
-		ldx #4
+        lda $b460,x
+        sta $02,x
+        dex
+        bpl Init256l1
+        sta $61
+        ldx #4
 Init256l2:
-		lda $bb34,x
-		sta $0259,x
-		dex
-		bne Init256l2
-		stx $78
-		stx $1a
-		stx $16
-		stx $0258
-		stx $1d
-		dex
-		stx $1e
-		stx $1f
-		inx
-		stx $31
-		ldx #$80
-		stx $32
-		sec
-		jsr $ff9c
-		stx $39
-		sty $3a
-		stx $35
-		sty $36
-		stx $2d
-		sty $2e
-		jsr $b9f5
-		jsr $b9ee
-		ldy #0
-		tya
-		sta ($2d),y
-		inc $2d
-		bne Init256l3
-		inc $2e
+        lda $bb34,x
+        sta $0259,x
+        dex
+        bne Init256l2
+        stx $78
+        stx $1a
+        stx $16
+        stx $0258
+        stx $1d
+        dex
+        stx $1e
+        stx $1f
+        inx
+        stx $31
+        ldx #$80
+        stx $32
+        sec
+        jsr $ff9c
+        stx $39
+        sty $3a
+        stx $35
+        sty $36
+        stx $2d
+        sty $2e
+        jsr $b9f5
+        jsr $b9ee
+        ldy #0
+        tya
+        sta ($2d),y
+        inc $2d
+        bne Init256l3
+        inc $2e
 Init256l3:
-	    lda #128
+        lda #128
         sta BellMode
-		lda #<Line1Banner
-		ldx #>Line1Banner
-		jsr BASICBanner		
-		lda #<Init256Banner
-		ldx #>Init256banner
-		jsr BASICBanner		
-		jsr RamBanner
-		jsr $8a12 
-		ldx #$39
-		ldy #$bb
-		jsr $ff6f
-		cli
-		jsr Do_MyInit
-		jsr SetKeys
-		lda #<InitW
-		sta wstvec
-		lda #>InitW
-		sta wstvec+1
-		jsr WedgeInstall
+        lda #<Line1Banner
+        ldx #>Line1Banner
+        jsr BASICBanner        
+        lda #<Init256Banner
+        ldx #>Init256banner
+        jsr BASICBanner        
+        jsr RamBanner
+        jsr $8a12 
+        ldx #$39
+        ldy #$bb
+        jsr $ff6f
+        cli
+        jsr Do_MyInit
+        jsr SetKeys
+        lda #<InitW
+        sta wstvec
+        lda #>InitW
+        sta wstvec+1
+        jsr WedgeInstall
         lda #0
         sta BellMode
-		jmp $85b8
-		
+        jmp $85b8
+        
 ; --------------------------------------------------------
 ; Startup banners
 ; --------------------------------------------------------
 Line1Banner:
         .byte $93
-    	.byte $B0
-        .res 78, $C0
-    	.byte $AE
         .byte 0
 Init128Banner:
-		.byte $DD
-		.byte "   *** COMMODORE 128 BASIC V4.0, IEC ROUTINES V1.0, 8088 BOOTSTRAP V1.2 ***   "
-		.byte $DD
-		.byte 0
+        .byte "    *** COMMODORE 128 BASIC V4.0, IEC ROUTINES V1.0, 8088 BOOTSTRAP V1.2 ***    "
+        .byte 0
 Init256Banner:
-		.byte $DD
-		.byte "   *** COMMODORE 256 BASIC V4.0, IEC ROUTINES V1.0, 8088 BOOTSTRAP V1.2 ***   "
-		.byte $DD
-		.byte 0
-		
+        .byte "    *** COMMODORE 256 BASIC V4.0, IEC ROUTINES V1.0, 8088 BOOTSTRAP V1.2 ***    "
+        .byte 0
+        
 ; --------------------------------------------------------
 ; Fast RAM initialization & test
 ; --------------------------------------------------------
@@ -323,26 +335,48 @@ LFAD8:
         rts
 
 ; --------------------------------------------------------
+; Wait for the VGA card to initialize
+; --------------------------------------------------------
+
+Delay:
+        lda #3
+        ldy #0
+        ldx #0
+Delay1:
+        nop
+        dex
+        bne Delay1
+        dey
+        bne Delay1
+        sec
+        sbc #1
+        bne Delay1
+        rts        
+
+; --------------------------------------------------------
 ; RAM size messages
 ; --------------------------------------------------------
 BASICBanner:
-		sta $025b
-		stx $025c
-		bit $8001
-		bpl BasicBanner1
-		jmp $a33b		
+        sta $025b
+        stx $025c
+        bit $8001
+        bpl BasicBanner1
+        jmp $a33b        
 BasicBanner1:
-		jmp $a3cf
+        jmp $a3cf
 
 RamBanner:
-    	jsr Check8088
+        jsr Check8088
         bne RamBanner1
-		lda #<Banner8088
-		ldx #>Banner8088
-		jsr BASICBanner		
+        lda #<Banner8088
+        ldx #>Banner8088
+        jsr BASICBanner        
 RamBanner1:
+.ifdef ORG2000
         jsr Check4000
         beq Has4000
+.endif
+.ifndef ORG6000
         jsr Check6000
         bne RamBanner2
         lda #$36
@@ -350,80 +384,78 @@ RamBanner1:
 Has4000:
         lda #$34
         pha
-		lda #<BannerCart
-		ldx #>BannerCart
-		jsr BASICBanner		
+        lda #<BannerCart
+        ldx #>BannerCart
+        jsr BASICBanner        
         pla
         jsr BSOUT
-		lda #<BannerCart2
-		ldx #>BannerCart2
-		jsr BASICBanner		        
+        lda #<BannerCart2
+        ldx #>BannerCart2
+        jsr BASICBanner                
 RamBanner2:
-		lda #<HelpMessage
-		ldx #>HelpMessage
-		jsr BASICBanner		
-  		lda SysMemTop+2
-    	asl a
-		asl a
-    	clc
-		adc #<RamMessage
-		ldx #>RamMessage
-		jsr BASICBanner
-		lda #<RamMessage2
-		ldx #>RamMessage2
-		jmp BASICBanner		
+.endif
+        lda #<HelpMessage
+        ldx #>HelpMessage
+        jsr BASICBanner        
+        lda SysMemTop+2
+        asl a
+        asl a
+        clc
+        adc #<RamMessage
+        ldx #>RamMessage
+        jsr BASICBanner
+        lda #<RamMessage2
+        ldx #>RamMessage2
+        jmp BASICBanner        
 
 RamMessage2:
-		.byte " KB MEMORY INSTALLED                               HTTP://WWW.CBM-II.COM/ ", $DD
-        .byte $AD
-    	.res 78, $C0
-        .byte $BD
-    	.byte 13
+        .byte " KB MEMORY INSTALLED                               HTTP://WWW.CBM-II.COM/  "
+        .byte 13
         .byte 0
 
 HelpMessage:
-		.byte $DD, " "
-		.byte "F11: CBMLINK SERIAL, "
-		.byte "F12: CBMLINK C2N232, "
-		.byte "F18: CART, "
-		.byte "F19: 8088, "
-		.byte "F20: MONITOR"
-		.byte " ", $DD, $DD, " "
-		.byte 0
+        .byte "  "
+        .byte "F11: CBMLINK SERIAL, "
+        .byte "F12: CBMLINK C2N232, "
+        .byte "F18: CART, "
+        .byte "F19: 8088, "
+        .byte "F20: MONITOR"
+        .byte "    "
+        .byte 0
 
 
 ; --------------------------------------------------------
 ; CBMLINK binaries
 ; --------------------------------------------------------
 CbmLinkSerial:
-		.incbin "cbmlink/serial.prg", 51
+        .incbin "cbmlink/serial.prg", 51
 CbmLinkC2N232:
-		.incbin "cbmlink/c2n232.prg", 51
+        .incbin "cbmlink/c2n232.prg", 51
 
 ; --------------------------------------------------------
 ; CBMLINK launch
 ; --------------------------------------------------------
 StartSerial:
-		ldx #0
+        ldx #0
 StartSerial1:
-		lda CbmLinkSerial,x
-		sta $0400, x
-		lda CbmLinkSerial+256,x
-		sta $0500,x
-		inx
-		bne StartSerial1
-		jmp $0400
-		
+        lda CbmLinkSerial,x
+        sta $0400, x
+        lda CbmLinkSerial+256,x
+        sta $0500,x
+        inx
+        bne StartSerial1
+        jmp $0400
+        
 StartC2N232:
-		ldx #0
+        ldx #0
 StartC2N2321:
-		lda CbmLinkC2N232,x
-		sta $0400, x
-		lda CbmLinkC2N232+256,x
-		sta $0500,x
-		inx
-		bne StartC2N2321
-		jmp $0400
+        lda CbmLinkC2N232,x
+        sta $0400, x
+        lda CbmLinkC2N232+256,x
+        sta $0500,x
+        inx
+        bne StartC2N2321
+        jmp $0400
 
 ; --------------------------------------------------------
 ; Check co-processor board presence
@@ -438,7 +470,7 @@ Check8088:
         rts
 
 Banner8088:        
-		.byte $DD, "              8088 CO-PROCESSOR BOARD INSTALLED, USE F19 TO START             ", $DD, 0
+        .byte "               8088 CO-PROCESSOR BOARD INSTALLED, USE F19 TO START              ", 0
 
 ; --------------------------------------------------------
 ; Check cartridge presence
@@ -455,20 +487,20 @@ StartCart:
         stx wstvec+1
         ldy #$00
         sty wstvec
-		sei
-		cld
-		ldx #$FE
-		txs
-		and #$80
-		beq StartCart1
+        sei
+        cld
+        ldx #$FE
+        txs
+        and #$80
+        beq StartCart1
         jsr do_ioinit
-   		lda #$F0
-	    sta PgmKeyBuf+1
-   		jsr jmp_scrinit
-        jsr MyRamTas 
-	   	jsr do_restor
+        lda #$F0
+        sta PgmKeyBuf+1
         jsr jmp_scrinit
-	    lda #$A5
+        jsr MyRamTas 
+        jsr do_restor
+        jsr jmp_scrinit
+        lda #$A5
         sta WstFlag
 StartCart1:
         jmp (wstvec)
@@ -501,80 +533,93 @@ CheckCart1:
 
         
 BannerCart:        
-		.byte $DD, "                 CARTRIDGE DETECTED AT $", 0
+        .byte "                  CARTRIDGE DETECTED AT $", 0
 BannerCart2:
-        .byte "000, USE F18 TO START                ", $DD, 0
+        .byte "000, USE F18 TO START                 ", 0
 
 ; --------------------------------------------------------
 ; Function key assignment
 ; --------------------------------------------------------
 SetKeys:
-		lda #8
-		sta $F0
-		lda #$0F
-		sta $F3
-		jsr Check8088
+.ifdef ORG2000
+        lda #8
+.else
+        lda #9
+.endif
+        sta $F0
+        lda #$0F
+        sta $F3
+        jsr Check8088
         bne SetKeys1
-		lda #<Key6
-		ldx #>Key6
-		ldy #19
-		jsr SetKey
+        lda #<Key6
+        ldx #>Key6
+        ldy #19
+        jsr SetKey
 SetKeys1:
-		jsr Check4000
+.ifdef ORG2000
+        jsr Check4000
         bne SetKeys2
-		lda #<Key4
-		ldx #>Key4
-		ldy #18
-		jsr SetKey
-		jmp SetKeys3
+        lda #<Key4
+        ldx #>Key4
+        ldy #18
+        jsr SetKey
+        jmp SetKeys3
 SetKeys2:
-		jsr Check6000
+.endif
+.ifndef ORG6000
+        jsr Check6000
         bne SetKeys3
-		lda #<Key5
-		ldx #>Key5
-		ldy #18
-		jsr SetKey
+        lda #<Key5
+        ldx #>Key5
+        ldy #18
+        jsr SetKey
 SetKeys3:
-		lda #<Key1
-		ldx #>Key1
-		ldy #20
-		jsr SetKey
-		lda #<Key2
-		ldx #>Key2
-		ldy #11
-		jsr SetKey
-		lda #<Key3
-		ldx #>Key3
-		ldy #12
-		jsr SetKey
-		rts
+.endif
+        lda #<Key1
+        ldx #>Key1
+        ldy #20
+        jsr SetKey
+        lda #<Key2
+        ldx #>Key2
+        ldy #11
+        jsr SetKey
+        lda #<Key3
+        ldx #>Key3
+        ldy #12
+        jsr SetKey
+        rts
 
 SetKey:
-		sta $F1
-		stx $F2
-  		lda #$F0
-		jmp jmp_funkey
+        sta $F1
+        stx $F2
+        lda #$F0
+        jmp jmp_funkey
 
-Key1:
-		.byte "SYS8214", 13
-Key2:
-		.byte "SYS8217", 13
-Key3:
-		.byte "SYS8220", 13
-Key4:
-		.byte "SYS8226", 13
-Key5:
-		.byte "SYS8229", 13
-Key6:
-		.byte "SYS8223", 13
+.ifdef ORG2000
+Key1:   .byte "SYS8214", 13
+Key2:   .byte "SYS8217", 13
+Key3:   .byte "SYS8220", 13
+Key4:   .byte "SYS8226", 13
+Key5:   .byte "SYS8229", 13
+Key6:   .byte "SYS8223", 13
+.endif
+.ifdef ORG4000
+Key1:   .byte "SYS16406", 13
+Key2:   .byte "SYS16409", 13
+Key3:   .byte "SYS16412", 13
+Key4:   .byte "SYS16418", 13
+Key5:   .byte "SYS16421", 13
+Key6:   .byte "SYS16415", 13
+.endif
+.ifdef ORG6000
+Key1:   .byte "SYS24598", 13
+Key2:   .byte "SYS24601", 13
+Key3:   .byte "SYS24604", 13
+Key4:   .byte "SYS24610", 13
+Key5:   .byte "SYS24613", 13
+Key6:   .byte "SYS24607", 13
+.endif
 
-; --------------------------------------------------------
-; Test whether the machine has 128 or 256 BASIC
-; Output: N=0 - BASIC 128, N=1 - BASIC 256
-; --------------------------------------------------------
-;CheckBasic:
-;		bit $8001		
-;		rts
 
 .include "moni/diskio.inc"
 .include "moni/moni.inc"
@@ -587,5 +632,14 @@ Key6:
 .include "8088/bootstrap.asm"
 .include "8088/banner.asm"
 
-.res	($4000-*), $FF
+.ifdef ORG2000
+.res    ($4000-*), $FF
+.endif
+.ifdef ORG4000
+.res    ($6000-*), $FF
+.endif
+.ifdef ORG6000
+.res    ($8000-*), $FF
+.endif
+
 

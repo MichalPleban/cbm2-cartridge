@@ -44,9 +44,9 @@ BannerShow:
         ldx #18
         ldy #0
         jsr $E019
-		lda #<BannerText
-		ldx #>BannerText
-		jmp BASICBanner		
+	lda #<BannerText
+	ldx #>BannerText
+	jmp BASICBanner		
     
 BannerDraw:
         ldy #0
@@ -77,7 +77,7 @@ BannerChar:
         rts
 
 BannerText:        
-		.byte   "8088 BOOTSTRAP V1.2 (C) 2020 MICHAL PLEBAN", 13, 0
+	.byte   "8088 BOOTSTRAP V1.2 (C) 2020 MICHAL PLEBAN", 13, 0
 
 BannerData:
         .byte   $00, $00, $00, $00, $00, $00, $F0, $0F, $00, $00, $00, $00, $00, $00, $FF, $00, $00, $00, $00, $00

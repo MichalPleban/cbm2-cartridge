@@ -35,6 +35,9 @@ RUNCOPRO = $ff72
 ;--------------------------------------------------------------------
 
 Bootstrap:
+        lda #<BootstrapMessage
+        ldx #>BootstrapMessage
+        jsr BASICBanner        
         jsr BootstrapInit
         jmp RUNCOPRO
 
@@ -231,3 +234,13 @@ BootstrapConvert2:
         adc #$5F
 BootstrapConvert3:
     	rts
+
+;--------------------------------------------------------------------
+; Bootstrap initial message
+;--------------------------------------------------------------------
+
+BootstrapMessage:
+        .byte "BOOTING THE 8088, PLEASE WAIT..."
+        .byte 13
+        .byte 0
+	
