@@ -88,6 +88,7 @@ Do_MyInit:
 Do_InitW:
         jsr Do_MyInit
         jsr SetKeys
+	jsr InitBreak
         jmp $8003        
 
 Do_Init:
@@ -174,6 +175,7 @@ Init128l3:
         jsr WedgeInstall
         lda #0
         sta BellMode
+	jsr InitBreak
         jmp $85c0
 
 ; --------------------------------------------------------
@@ -246,7 +248,18 @@ Init256l3:
         jsr WedgeInstall
         lda #0
         sta BellMode
+	jsr InitBreak
         jmp $85b8
+
+; --------------------------------------------------------
+; New break vector
+; --------------------------------------------------------
+InitBreak:
+	lda	#>Break
+	ldx	#<Break
+	stx	BRKVec
+	sta	BRKVec+1
+	rts
         
 ; --------------------------------------------------------
 ; Startup banners
@@ -620,9 +633,18 @@ Key5:   .byte "SYS24613", 13
 Key6:   .byte "SYS24607", 13
 .endif
 
+.ifdef ORG2000
+.res    ($2900-*), $FF
+.endif
+.ifdef ORG4000
+.res    ($4900-*), $FF
+.endif
+.ifdef ORG6000
+.res    ($6900-*), $FF
+.endif
 
-.include "moni/diskio.inc"
 .include "moni/moni.inc"
+.include "moni/diskio.inc"
 
 .include "iec/iec.inc"
 .include "iec/serbus.inc"
